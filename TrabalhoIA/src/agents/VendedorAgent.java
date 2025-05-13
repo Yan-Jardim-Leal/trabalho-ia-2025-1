@@ -46,8 +46,7 @@ public class VendedorAgent extends Agent{
 	        System.out.println(" - " + entry.getKey() + ": " + entry.getValue() + " unidades");
 	    }
 	}
-	public vo
-	id realizarVenda(Livro livro, int quantidade) {
+	public void realizarVenda(Livro livro, int quantidade) {
 	    int qtdAtual = estoque.getOrDefault(livro, 0);
 	    if (qtdAtual >= quantidade) {
 	        estoque.put(livro, qtdAtual - quantidade);
@@ -58,5 +57,41 @@ public class VendedorAgent extends Agent{
 	            lucro += quantidade * oferta.getPreco();
 	        }
 	    }
+	}
+	public Map<Livro, Integer> getEstoque() {
+		return this.estoque;
+	}
+	public void setEstoque(Map<Livro, Integer> estoque) {
+		this.estoque = estoque;
+	}
+	public Map<Integer, Oferta> getOfertas() {
+		return this.ofertas;
+	}
+	public void setOfertas(Map<Integer, Oferta> ofertas) {
+		this.ofertas = ofertas;
+	}
+	public int getLivrosVendidos() {
+		return this.livrosVendidos;
+	}
+	public void setLivrosVendidos(int livrosVendidos) {
+		this.livrosVendidos = livrosVendidos;
+	}
+	public double getLucro() {
+		return this.lucro;
+	}
+	public void setLucro(double lucro) {
+		this.lucro = lucro;
+	}
+	public String getEstrategia() {
+		return this.estrategia;
+	}
+	public void setEstrategia(String estrategia) {
+		this.estrategia = estrategia;
+	}
+	public double getMargemNegociacao() {
+		return this.margemNegociacao;
+	}
+	public void setMargemNegociacao(double margemNegociacao) {
+		this.margemNegociacao = margemNegociacao;
 	}
 }

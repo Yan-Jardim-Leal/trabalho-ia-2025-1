@@ -4,18 +4,18 @@ import java.io.Serializable;
 
 public class Oferta implements Serializable {
 
-    private int idLivro;
+    private Livro livro;
     private double preco;
     private double fatorNegociacao;
 
-    public Oferta(int idLivro, double preco, double fatorNegociacao) {
-        this.idLivro = idLivro;
+    public Oferta(Livro livro, double preco, double fatorNegociacao) {
+        this.livro = livro;
         this.preco = preco;
         this.fatorNegociacao = fatorNegociacao;
     }
 
-    public int getIdLivro() {
-        return this.idLivro;
+    public Livro getLivro() {
+    	return this.livro;
     }
 
     public double getPreco() {
