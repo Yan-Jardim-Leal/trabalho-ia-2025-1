@@ -12,12 +12,12 @@ import objects.Livro;
 import objects.Oferta;
 
 public class VendedorAgent extends Agent{
-	Map<Livro, Integer> estoque;
-	Map<Integer, Oferta> ofertas; 
-	int livrosVendidos;
-	double lucro;
-	String estrategia; // Ex: "A", "B"
-	double margemNegociacao; // 0.10 = 10%
+	private Map<Livro, Integer> estoque;
+	private Map<Integer, Oferta> ofertas; 
+	private int livrosVendidos;
+	private double lucro;
+	private String estrategia; // Ex: "A", "B"
+	private double margemNegociacao; // 0.10 = 10%
 	
 	@Override
 	protected void setup() {
@@ -44,6 +44,19 @@ public class VendedorAgent extends Agent{
 	    System.out.println("Agente Cliente iniciado com estoque:");
 	    for (Map.Entry<Livro, Integer> entry : estoque.entrySet()) {
 	        System.out.println(" - " + entry.getKey() + ": " + entry.getValue() + " unidades");
+	    }
+	}
+	public vo
+	id realizarVenda(Livro livro, int quantidade) {
+	    int qtdAtual = estoque.getOrDefault(livro, 0);
+	    if (qtdAtual >= quantidade) {
+	        estoque.put(livro, qtdAtual - quantidade);
+	        livrosVendidos += quantidade;
+
+	        Oferta oferta = ofertas.get(livro.ordinal());
+	        if (oferta != null) {
+	            lucro += quantidade * oferta.getPreco();
+	        }
 	    }
 	}
 }
