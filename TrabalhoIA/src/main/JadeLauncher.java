@@ -6,72 +6,189 @@ import jade.core.Runtime;
 import jade.wrapper.AgentController;
 import jade.wrapper.ContainerController;
 import jade.wrapper.StaleProxyException;
+import objects.Livro; // Importar Livro para estoque aleatório
+
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
+import java.util.Random;
+import java.util.Scanner;
 
 public class JadeLauncher {
-	/*
-	 * =========================================
-	 * 		ALUNOS:
-	 * 
-	 * 			YAN JARDIM LEAL
-	 * 				GABRIEL PEREIRA NEVES
-	 * 					ROBERTO MARQUES DIAS
-	 * 
-	 * =========================================
-	 * 
-	 */
+
+    private static ContainerController mainContainer;
+    private static int idVendedorCounter = 1;
+    private static int idClienteCounter = 1;
+    private static List<String> logRelatorio = new ArrayList<>();
+
     public static void main(String[] args) {
-        Runtime rt = Runtime.instance();
+        Scanner scanner = new Scanner(System.in);
+        int numVendedores = 0;
+        int numClientes = 0; // No Notion "agentes" pode se referir a clientes
+
+        while (true) {
+            System.out.println("\nMenu da Simulação:");
+            System.out.println("1) Definir quantidade de Vendedores");
+            System.out.println("2) Definir quantidade de Clientes (Compradores)");
+            System.out.println("3) Iniciar Simulação");
+            System.out.println("4) Sair");
+            System.out.print("Escolha uma opção: ");
+            String escolha = scanner.nextLine();
+
+            switch (escolha) {
+                case "1":
+                    System.out.print("Digite a quantidade de vendedores: ");
+                    try {
+                        numVendedores = Integer.parseInt(scanner.nextLine());
+                        if (numVendedores < 0) numVendedores = 0;
+                        System.out.println(numVendedores + " vendedores definidos.");
+                    } catch (NumberFormatException e) {
+                        System.out.println("Entrada inválida. Por favor, digite um número.");
+                    }
+                    break;
+                case "2":
+                    System.out.print("Digite a quantidade de clientes (compradores): ");
+                    try {
+                        numClientes = Integer.parseInt(scanner.nextLine());
+                        if (numClientes < 0) numClientes = 0;
+                        System.out.println(numClientes + " clientes definidos.");
+                    } catch (NumberFormatException e) {
+                        System.out.println("Entrada inválida. Por favor, digite um número.");
+                    }
+                    break;
+                case "3":
+                    if (numVendedores == 0 && numClientes == 0) {
+                        System.out.println("Defina a quantidade de vendedores e/ou clientes antes de iniciar.");
+                    } else {
+                        iniciarPlataformaJadeEAgentes(numVendedores, numClientes);
+                        // Após o JADE iniciar e os agentes executarem (o que é assíncrono),
+                        // não temos um "fim de turno" fácil aqui sem um agente controlador.
+                        // O "relatório" será o log do console gerado pelos agentes.
+                        // Para um relatório mais estruturado, precisaríamos de um mecanismo
+                        // para os agentes enviarem dados de volta ou um agente coletor.
+                        System.out.println("\n--- Simulação Iniciada ---");
+                        System.out.println("Acompanhe o log do console para ver as interações dos agentes.");
+                        System.out.println("A interface RMA do JADE também foi iniciada para visualização.");
+                        System.out.println("Pressione Enter para voltar ao menu principal após observar a simulação...");
+                        scanner.nextLine(); // Pausa para o usuário observar
+                        // Para "próximo turno" ou "N turnos", precisaríamos parar e reiniciar agentes
+                        // ou ter um agente controlador. Esta versão simples roda uma vez.
+                        // Se quiséssemos simular N "cenários", poderíamos chamar
+                        // iniciarPlataformaJadeEAgentes em um loop aqui,
+                        // mas cada chamada criaria uma nova instância JADE (ou tentaria).
+                        // Para uma simulação contínua com turnos, o controle deve ser DENTRO do JADE.
+                    }
+                    break;
+                case "4":
+                    System.out.println("Saindo da simulação...");
+                    if (mainContainer != null) {
+                        try {
+                            // Tentar desligar o container principal de forma graciosa
+                            // Isso pode não matar todos os agentes imediatamente se eles estiverem bloqueados
+                            // ou em loops longos sem checagem de interrupção.
+                            mainContainer.kill(); // Tenta matar o container e seus agentes
+                        } catch (StaleProxyException e) {
+                            // O container já pode ter sido morto ou desconectado
+                            System.err.println("Erro ao tentar desligar o container JADE: " + e.getMessage());
+                        }
+                    }
+                    Runtime.instance().shutDown(); // Tenta desligar o runtime do JADE
+                    scanner.close();
+                    return;
+                default:
+                    System.out.println("Opção inválida. Tente novamente.");
+            }
+        }
+    }
+
+    private static void iniciarPlataformaJadeEAgentes(int numVendedores, int numClientes) {
+        // Reinicializa contadores de ID para cada nova simulação
+        idVendedorCounter = 1; 
+        idClienteCounter = 1;
+        logRelatorio.clear();
+
+        // Garante que o runtime JADE seja obtido (ou criado se for a primeira vez)
+        Runtime rt = Runtime.instance(); 
+
+        // Se já existe um container principal, tentamos matá-lo antes de criar um novo
+        // Isso é problemático se quisermos "turnos" DENTRO da mesma instância JADE.
+        // Para "iniciar simulação" do zero, é ok.
+        if (mainContainer != null) {
+            try {
+                mainContainer.kill(); // Tenta matar o container anterior e seus agentes
+                Thread.sleep(1000); // Pequena pausa para o JADE processar o kill
+            } catch (StaleProxyException | InterruptedException e) {
+                 System.err.println("Aviso: Problema ao tentar parar container anterior: " + e.getMessage());
+            }
+        }
+
+
         Profile p = new ProfileImpl();
         p.setParameter(Profile.MAIN_HOST, "localhost");
-        p.setParameter(Profile.GUI, "false"); // Vamos manter a GUI desligada, creio que o importante seja os bots funcionando no log
+        p.setParameter(Profile.GUI, "false"); // Essa gui não é precisa, faremos tudo no console.
 
-        ContainerController mainContainer = rt.createMainContainer(p);
+        mainContainer = rt.createMainContainer(p);
 
         if (mainContainer == null) {
             System.err.println("Falha ao criar container principal. Verifique se outra instância JADE não está rodando na mesma porta.");
             return;
         }
-        
-        System.out.println("\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n");
-        
+
         try {
-            // Vendedores
-            // Formato args: "LIVRO1:PRECO1:QTD1,LIVRO2:PRECO2:QTD2,..."
-            Object[] vendedor1Args = {"HARRY_POTTER:25.0:5,O_SENHOR_DOS_ANEIS:40.0:3"};
-            AgentController vendedor1 = mainContainer.createNewAgent("vendedor1", "agents.VendedorAgent", vendedor1Args);
-            vendedor1.start();
+            Random random = new Random();
+            Livro[] todosLivros = Livro.values();
 
-            Object[] vendedor2Args = {"HARRY_POTTER:28.0:2,AS_CRONICAS_DO_GELO_E_FOGO:35.0:4,APOLOGIA_DE_SOCRATES:22.0:6"};
-            AgentController vendedor2 = mainContainer.createNewAgent("vendedor2", "agents.VendedorAgent", vendedor2Args);
-            vendedor2.start();
-            
-            Object[] vendedor3Args = {"UMA_BREVE_HISTORIA_DO_TEMPO:30.0:3,ASSIM_FALOU_ZARATUSTRA:27.0:2"};
-            AgentController vendedor3 = mainContainer.createNewAgent("vendedor3", "agents.VendedorAgent", vendedor3Args);
-            vendedor3.start();
+            // Criar Vendedores
+            for (int i = 0; i < numVendedores; i++) {
+                // Criar estoque aleatório para cada vendedor
+                StringBuilder estoqueArgs = new StringBuilder();
+                int numTiposLivrosParaVendedor = 1 + random.nextInt(Math.min(3, todosLivros.length)); // Vende de 1 a 3 tipos
+                
+                List<Livro> livrosDisponiveisParaEsteVendedor = new ArrayList<>(Arrays.asList(todosLivros));
+                Collections.shuffle(livrosDisponiveisParaEsteVendedor);
 
+                for (int j = 0; j < numTiposLivrosParaVendedor && j < livrosDisponiveisParaEsteVendedor.size() ; j++) {
+                    Livro livro = livrosDisponiveisParaEsteVendedor.get(j);
+                    double preco = 20.0 + random.nextInt(31); // Preço entre 20-50
+                    int quantidade = 1 + random.nextInt(5); // 1-5 unidades
+                    if (estoqueArgs.length() > 0) {
+                        estoqueArgs.append(",");
+                    }
+                    estoqueArgs.append(livro.name()).append(":").append(String.format("%.1f", preco).replace(",", ".")).append(":").append(quantidade);
+                }
+                Object[] vendedorArgs = {estoqueArgs.toString()};
+                AgentController vendedor = mainContainer.createNewAgent("vendedor" + (idVendedorCounter++), "agents.VendedorAgent", vendedorArgs);
+                vendedor.start();
+            }
 
-            // Clientes
-            // Formato args: "NOME_LIVRO_ENUM:PRECO_MAXIMO:ESTRATEGIA(A,B,C)"
-            Thread.sleep(2000); // Pequena pausa para os vendedores registrarem no DF
+            // Pausa para vendedores registrarem no DF
+            if (numVendedores > 0 && numClientes > 0) {
+                 System.out.println("Aguardando vendedores registrarem no DF...");
+                 Thread.sleep(2000 + (numVendedores * 100)); // Aumentar um pouco o tempo se houver muitos vendedores
+            }
 
-            Object[] cliente1Args = {"HARRY_POTTER:27.0:B"}; // Quer Harry Potter por no max R$27, estrategia B
-            AgentController cliente1 = mainContainer.createNewAgent("cliente1", "agents.ClienteAgent", cliente1Args);
-            cliente1.start();
+            // Criar Clientes
+            for (int i = 0; i < numClientes; i++) {
+                if (todosLivros.length == 0) {
+                    System.out.println("Nenhum livro definido no enum Livro. Não é possível criar clientes.");
+                    break;
+                }
+                Livro livroDesejado = todosLivros[random.nextInt(todosLivros.length)];
+                double precoMaxCliente = 15.0 + random.nextInt(46); // Preço máx entre 15-60
+                String[] estrategias = {"A", "B", "C"};
+                String estrategiaCliente = estrategias[random.nextInt(estrategias.length)];
 
-            Object[] cliente2Args = {"AS_CRONICAS_DO_GELO_E_FOGO:38.0:C"}; // Quer As Crônicas por no max R$38, estrategia C
-            AgentController cliente2 = mainContainer.createNewAgent("cliente2", "agents.ClienteAgent", cliente2Args);
-            cliente2.start();
-            
-            Object[] cliente3Args = {"APOLOGIA_DE_SOCRATES:20.0:A"}; // Quer Apologia por no max R$20, estrategia A (tratar A = B por simplicidade)
-            AgentController cliente3 = mainContainer.createNewAgent("cliente3", "agents.ClienteAgent", cliente3Args);
-            cliente3.start();
-
+                Object[] clienteArgs = {livroDesejado.name() + ":" + String.format("%.1f", precoMaxCliente).replace(",",".") + ":" + estrategiaCliente};
+                AgentController cliente = mainContainer.createNewAgent("cliente" + (idClienteCounter++), "agents.ClienteAgent", clienteArgs);
+                cliente.start();
+            }
 
         } catch (StaleProxyException e) {
-            System.err.println("Erro StaleProxyException ao criar agentes: ");
+            System.err.println("Erro StaleProxyException ao criar agentes: " + e.getMessage());
             e.printStackTrace();
         } catch (InterruptedException e) {
-            System.err.println("Thread interrompida: ");
+            System.err.println("Thread interrompida: " + e.getMessage());
             e.printStackTrace();
         }
     }
