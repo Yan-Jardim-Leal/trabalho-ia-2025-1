@@ -3,8 +3,9 @@ package objects;
 import java.io.Serializable;
 
 public class Oferta implements Serializable {
-
-    private Livro livro;
+	private static final long serialVersionUID = 1L;
+	
+	private Livro livro;
     private double preco;
     private double fatorNegociacao;
 
